@@ -8,6 +8,10 @@ def z_to_Time(z,cosmo=None,verbose=False):
         h = 0.6774
         om = 0.3089
         ol = 0.6911
+        #behroozi parameters
+        # h=.7
+        # om=.27
+        # ol=1-om
         if verbose: print "Assuming a Planck 2015 cosmology (H0 = {0}, Om0 = {1}, OL = {2})".format(h*100,om,ol)
         cosmo = Cosmology(hubble_constant=h,omega_matter=om,omega_lambda=ol)
 
@@ -26,6 +30,10 @@ def time_to_z(t,cosmo=None,verbose=False):            # H0=YTQuantity(70.2,'km/s
         h = 0.6774
         om = 0.3089
         ol = 0.6911
+        #behroozi parameters
+        # h=.7
+        # om=.27
+        # ol=1-om
         if verbose: print "Assuming a Planck 2015 cosmology (H0 = {0}, Om0 = {1}, OL = {2})".format(h*100,om,ol)
         cosmo = Cosmology(hubble_constant=h,omega_matter=om,omega_lambda=ol)
 
