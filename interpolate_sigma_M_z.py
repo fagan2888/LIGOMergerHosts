@@ -10,10 +10,12 @@ else:
 
 from pickle import dump
 import numpy as np
-from scipy.interpolate import interp2d
+from scipy.interpolate import interp2d,InterpolatedUnivariateSpline
 from hmf import hmf
+# from astropy.cosmology import FlatLambdaCDM
 
-zbins = np.arange(0,8,.25)
+
+zbins = np.arange(0,8,.1)
 mmin = 8
 mmax = 15
 dlog10m = 0.1   #steps of 0.1 in logM
@@ -22,8 +24,13 @@ siglist = []
 mlist = []
 zlist = []
 
+# astropy_cosmo = FlatLambdaCDM(H0=70,Om0=0.3)
+# hmf_cosmo = cosmo.Cosmology(cosmo_model=astropy_cosmo)
+
 print "Grabbing sigma(M,z)"
-mf = hmf.MassFunction(z=0,Mmin=mmin,Mmax=mmax,dlog10m=dlog10m)
+cosmodict = {'Om0':0.3,'H0':70.}
+
+mf = hmf.MassFunction(z=0,Mmin=mmin,Mmax=mmax,dlog10m=dlog10m,cosmo_params=cosmodict)
 for z in zbins:
     mf.update(z=z)
     siglist.append(mf.sigma)
@@ -44,6 +51,7 @@ outf = open(outname,'w')
 dump(f,outf)
 outf.close()
 print "Wrote interpolation to "+outname
+
 
 import matplotlib.pyplot as plt
 from mytools import griddata
@@ -98,3 +106,28 @@ plt.ylabel(r'$\sigma$')
 
 plt.savefig(outname[:-4]+'1dinterp_test.png')
 plt.close('all')
+
+print "Now doing growth factor"
+#now do growth factor:
+growth = []
+for z in zbins:
+    mf.update(z=z)
+    growth.append(mf.growth_factor)
+
+growth = np.array(growth)
+#now interpolate:
+g_of_z = InterpolatedUnivariateSpline(zbins,growth)
+
+outf = open(outname[:-4]+'growth_factor_of_z.pkl','w')
+dump(g_of_z,outf)
+outf.close()
+
+fig = plt.figure()
+plt.plot(zbins,growth,'k-')
+plt.plot(zbins,g_of_z(zbins),'r--')
+# plt.plot
+plt.xlabel('redshift')
+plt.ylabel('growth factor')
+plt.axhline(y=1)
+
+plt.savefig(outname[:-4]+'growth_plot.pdf')
