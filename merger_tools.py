@@ -66,13 +66,25 @@ def EPS_is_awesome(lM0,z):
     #lower values for dlM give problems for small progenitors
     #0.001 requiered at z=0
     #nu is large for high z, specially large progenitors
-    dlM=0.0001
+    # if lM0>13 and z<1.5:
+    #     lprog_min=lM0-4
+    #     lprog_max=lM0-0.0005
+    #     dlM=0.01
+    # else:
+    #     lprog_min=lM0-2
+    #     lprog_max=lM0-0.0005
+    #     dlM=0.001
+
+    lprog_min=lM0-4
+    lprog_max=lM0-0.0005
+    dlM=0.001
+        
     
     # for a given redshift and z=0 Halo mass, build the conditional mass function
     #from Cole+2008, Eqn 5 with f_ps replaced by eq. 7
     dcrit_0=1.686 #Carroll'92)
-    lprog_min=lM0-4
-    lprog_max=lM0-0.0005
+#    lprog_min=lM0-3
+#    lprog_max=lM0-0.0005
 
     nmassbins=int(round((lprog_max-lprog_min)/dlM))
     prog_mass=np.linspace(lprog_min,lprog_max,nmassbins)
@@ -81,24 +93,23 @@ def EPS_is_awesome(lM0,z):
     mass_ratio=np.zeros(nmassbins)
     nus=np.zeros(nmassbins)
     nus1=np.zeros(nmassbins)
-    sigma_0=10**(lsigma_M(lM0,z))
+    sigma_0=10**(lsigma_M(lM0,0))
     for m in range(0,nmassbins):
 
         mass_ratio[m]=prog_mass[m]-lM0
-        sigmas[m]=10**(lsigma_M(prog_mass[m],z))
+#        sigmas[m]=10**(lsigma_M(prog_mass[m],z))
+        sigmas[m]=10**(lsigma_M(prog_mass[m],0))
         growth=growth_z(z)
         dcrit_z=dcrit_0/growth
 
         #we have absolute values to avoid small negative numbers at very low z
-        nus[m]=abs((dcrit_z-dcrit_0)/(sigmas[m]**2-sigma_0**2)**(1./2.))
+        nus[m]=((dcrit_z-dcrit_0)/(sigmas[m]**2-sigma_0**2)**(1./2.))
 
     deriv=np.gradient(np.log10(nus))/np.gradient(prog_mass)
     fit_GF=.4*nus**(3./4.)*np.exp(-nus**(3)/10)
     mass_frac=fit_GF*abs(deriv)
 
     return mass_ratio,mass_frac
-
-
     
 def get_fit(lM0,z):
     dlM=0.001
@@ -155,8 +166,9 @@ def derivs(lM0,z):
 
 def plot_fits():
     plt.clf()
+
     for z in (0.5,1,2,4):
-        for lMhalo in (12,13.5,15):
+        for lMhalo in (12,13.16,15):
             nus,fit=get_fit(lMhalo,z)
             plt.plot(np.log10(nus),np.log10(fit),label='z='+str(z)+' $lM$='+str(lMhalo))
             #    plt.ylim(-7,0)
@@ -197,9 +209,11 @@ def plot_derivs():
 
 
 def plot_ratios():
+    little_h=.7
+    lh=np.log10(little_h)
     plt.clf()
     for z in (0.5,1,2,4):
-        for lMhalo in (12,13.5,15):
+        for lMhalo in (12-little_h,13.15-little_h,15-little_h):
             masses,frac=EPS_is_awesome(lMhalo,z)
             plt.plot(masses,np.log10(frac),label='z='+str(z)+' $lM$='+str(lMhalo))
             plt.ylim(-2,0.5)
@@ -212,7 +226,7 @@ def plot_ratios():
     plt.legend(loc="best")
     
     #    plt.show()
-    plt.savefig("EPS_Cole08_Fig1_sigma.pdf")
+    plt.savefig("EPS_Cole08_Fig1.pdf")
 
 
     
@@ -350,6 +364,17 @@ def Stellar_Mass_Function(lMgal,ldM):
     return calc*dM
 
 
+def Gal_to_Halo_mass(lMgal):
+    #Behroozi+2010 eq 21. assumes redshift 0
+    lM0=10.72
+    b=0.44
+    d=0.57
+    g=1.56
+    lM1=12.35
+    ratio=10**(lMgal-lM0)
+    lMhalo=lM1+b*(lMgal-lM0)+(ratio**d/(1+ratio**(-g)))-.5
+    return lMhalo
+
 def Halo_Mass_Function(lMhalo,ldM):
     dM=10**ldM
     return interp_ST(10**lMhalo)*dM
@@ -372,7 +397,7 @@ def abundance_match_behroozi_2012(Mhalo,z,alpha=None):
     from numpy import log10,exp
     def f(x,alpha,delta,gamma):
         top = log10(1+exp(x))**gamma
-        bottom = 1 + exp(10**-x)
+        bottom = 1 + exp(10**-x) 
         return -log10(10**(alpha*x)+1) + delta*top/bottom
 
     a = 1./(1.+z)
