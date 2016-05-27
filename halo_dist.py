@@ -17,7 +17,7 @@ from yt.utilities.cosmology import Cosmology
 import matplotlib.ticker as plticker
 import matplotlib as mpl
 import itertools
-dt=1e9
+dt=1e8
 if dt==1e8:
     DT="1e8"
 elif dt==1e7:
