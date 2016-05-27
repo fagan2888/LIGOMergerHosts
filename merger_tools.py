@@ -46,11 +46,19 @@ max_Mhalo,z=np.loadtxt(fname_maxMass,unpack=True,skiprows=1,usecols=(0,1))
 interp_max_Mhalo=interp1d(z,max_Mhalo)
 
 #get merger delay times from Drew
-fname_merger='bhbh_mergers_m_150_ecc.dat'
-tdelay,merger_frac_001,merger_frac_01,merger_frac_03=np.loadtxt(fname_merger,unpack=True,skiprows=7)
+# fname_merger='bhbh_mergers_m_150_ecc.dat'
+# tdelay,merger_frac_001,merger_frac_01,merger_frac_03=np.loadtxt(fname_merger,unpack=True,skiprows=7)
+# interp_merg_01=interp1d(tdelay,merger_frac_01)
+# interp_merg_001=interp1d(tdelay,merger_frac_001)
+# interp_merg_03=interp1d(tdelay,merger_frac_03)
+
+#get mergers per unit time (Fig.2)
+fname_merger_t='bhbh_mergers_dNdt_SGK_m_150_ecc_FIXED.dat'
+tdelay,merger_frac_001,merger_frac_01,merger_frac_03=np.loadtxt(fname_merger_t,unpack=True,skiprows=1)
 interp_merg_01=interp1d(tdelay,merger_frac_01)
 interp_merg_001=interp1d(tdelay,merger_frac_001)
 interp_merg_03=interp1d(tdelay,merger_frac_03)
+
 
 #get sigma(M)
 fsigma='our_cosmo_logSig_of_logM_z.pkl'
@@ -62,27 +70,17 @@ growth_z=pickle.load(open(fgrowth,'r'))
 
     
 
-def EPS_is_awesome(lM0,z):
-    #lower values for dlM give problems for small progenitors
-    #0.001 requiered at z=0
-    #nu is large for high z, specially large progenitors
-    # if lM0>13 and z<1.5:
-    #     lprog_min=lM0-4
-    #     lprog_max=lM0-0.0005
-    #     dlM=0.01
-    # else:
-    #     lprog_min=lM0-2
-    #     lprog_max=lM0-0.0005
-    #     dlM=0.001
+def EPS_is_awesome(lM0,z,dlM,zobs):
 
     lprog_min=lM0-4
     lprog_max=lM0-0.0005
-    dlM=0.001
-        
-    
-    # for a given redshift and z=0 Halo mass, build the conditional mass function
+
     #from Cole+2008, Eqn 5 with f_ps replaced by eq. 7
     dcrit_0=1.686 #Carroll'92)
+#    growth=growth_z(zobs)
+    growth=growth_z(0.001)/growth_z(zobs)
+    dcrit_zobs=dcrit_0/growth
+    
 #    lprog_min=lM0-3
 #    lprog_max=lM0-0.0005
 
@@ -93,23 +91,92 @@ def EPS_is_awesome(lM0,z):
     mass_ratio=np.zeros(nmassbins)
     nus=np.zeros(nmassbins)
     nus1=np.zeros(nmassbins)
-    sigma_0=10**(lsigma_M(lM0,0))
+#    sigma_zobs=10**(lsigma_M(lM0,zobs))
+    sigma_zobs=10**(lsigma_M(lM0,0.001))
     for m in range(0,nmassbins):
 
         mass_ratio[m]=prog_mass[m]-lM0
 #        sigmas[m]=10**(lsigma_M(prog_mass[m],z))
         sigmas[m]=10**(lsigma_M(prog_mass[m],0))
-        growth=growth_z(z)
+#        sigmas[m]=10**(lsigma_M(prog_mass[m],zobs))
+        growth=growth_z(z)/growth_z(zobs)
+        #growth=growth_z(z)
         dcrit_z=dcrit_0/growth
 
+
         #we have absolute values to avoid small negative numbers at very low z
-        nus[m]=((dcrit_z-dcrit_0)/(sigmas[m]**2-sigma_0**2)**(1./2.))
+        nus[m]=((dcrit_z-dcrit_zobs)/(sigmas[m]**2-sigma_zobs**2)**(1./2.))
 
     deriv=np.gradient(np.log10(nus))/np.gradient(prog_mass)
     fit_GF=.4*nus**(3./4.)*np.exp(-nus**(3)/10)
     mass_frac=fit_GF*abs(deriv)
 
+#    print mass_frac,'mass_frac'
+#    print fit_GF,'GF'p
+#    #mass ratio is log scale, mass frac is linear
     return mass_ratio,mass_frac
+
+
+def Bond_is_awesome(lM2,z1,dlM2,z2):
+
+    lprog_min=lM2-4
+    lprog_max=lM2-0.0005
+
+    #from Cole+2008, Eqn 5 with f_ps replaced by eq. 7
+    dcrit_0=1.686 #Carroll'92)
+#    growth=growth_z(zobs)
+    growth=growth_z(z2)#/growth_z(z2)
+    dcrit_z2=dcrit_0/growth
+    
+#    lprog_min=lM0-3
+#    lprog_max=lM0-0.0005
+
+    nmassbins=int(round((lprog_max-lprog_min)/dlM2))
+    prog_mass=np.linspace(lprog_min,lprog_max,nmassbins)
+
+    sigmas=np.zeros(nmassbins)
+    nus=np.zeros(nmassbins)
+    mass_ratio=np.zeros(nmassbins)
+    dif=np.zeros(nmassbins)
+    interm=np.zeros(nmassbins)
+    sigma_z2=10**(lsigma_M(lM2,0))
+    s22=sigma_z2**2
+    m2=10**lM2
+    for m in range(0,nmassbins):
+
+        mass_ratio[m]=prog_mass[m]-lM2
+#        sigmas[m]=10**(lsigma_M(prog_mass[m],z))
+#        sigmas[m]=10**(lsigma_M(prog_mass[m],0))
+        sigmas[m]=10**(lsigma_M(prog_mass[m],0))
+        m1=10**prog_mass[m]
+#        print m1/1e6,m2/16
+        s12=sigmas[m]**2
+        growth=growth_z(z1)#/growth_z(z2)
+#        growth=growth_z(z)
+        dcrit_z1=dcrit_0/growth
+        expo=exp(-(dcrit_z1-dcrit_z2)**2/(2*(s12-s22)))
+        #interm[m]=(2.*np.arccos(-1.0))**(-1./2)*(dcrit_z1-dcrit_z2)*(s12-s22)**(-3./2.)*expo
+        nus[m]=((dcrit_z1-dcrit_z2)/(s12**2-s22**2)**(1./2.))
+        interm[m]=(2./np.arccos(-1.0))**(1./2)*nus[m]*exp(-nus[m]**2/2)*m2/m1
+#        interm[m]=.4*nus[m]**(3./4.)*np.exp(-nus[m]**(3)/10)#*m2/m1
+        dif[m]=s12-s22
+
+#        print mass_ratio[m],dcrit_z1,expo,dif
+
+    deriv=np.gradient(np.log10(nus))/np.gradient(prog_mass)
+#    fit_GF=.4*nus**(3./4.)*np.exp(-nus**(3)/10)
+    mass_frac=interm*abs(deriv)
+#    mass_frac=fit_GF*abs(deriv)
+#    print deriv,dif,mass_frac1
+    # for m in range(0,nmassbins):
+    #     print deriv[m],interm[m],mass_frac[m]
+#    print mass_frac,'mass_frac'
+    
+#    print fit_GF,'GF'p
+#    #mass ratio is log scale, mass frac is linear
+    return mass_ratio,mass_frac
+
+
     
 def get_fit(lM0,z):
     dlM=0.001
@@ -214,7 +281,7 @@ def plot_ratios():
     plt.clf()
     for z in (0.5,1,2,4):
         for lMhalo in (12-little_h,13.15-little_h,15-little_h):
-            masses,frac=EPS_is_awesome(lMhalo,z)
+            masses,frac=EPS_is_awesome(lMhalo,z,1e-3,0)
             plt.plot(masses,np.log10(frac),label='z='+str(z)+' $lM$='+str(lMhalo))
             plt.ylim(-2,0.5)
             plt.xlim(-5,.5)
@@ -348,29 +415,54 @@ def SFR_lMhalo(lMhalo,z):
 #    print lMhalo,'lMhalo SFR',z,10**lSFR
     return 10**lSFR    
     
-def Stellar_Mass_Function(lMgal,ldM):
+def Stellar_Mass_Function(lMgal,ldM,zobs):
 #,Tomczak+2014
-#check for issues with little h
-    lMstar=10.648
-    dM=10**ldM
 
-    phi_1=10**(-2.54)
-    phi_2=10**(-4.29)
-    alpha_1=-.98
-    alpha_2=-1.90
+
+    dM=10**ldM
+    if zobs < .5:
+        lMstar=10.59
+        phi_1=10**(-2.67)
+        phi_2=10**(-4.46)
+        alpha_1=-1.08
+        alpha_2=-2.
+    elif zobs <=1.:
+        lMstar=10.56
+        phi_1=10**(-2.81)
+        phi_2=10**(-3.36)
+        alpha_1=-0.46
+        alpha_2=-1.61
+
     dif=lMgal-lMstar
     calc=log(10)*exp(-10**dif)*10**dif*(phi_1*10**(dif*alpha_1)+phi_2*10**(dif*alpha_2))
+
     #    print lMgal,calc*dM
+
     return calc*dM
 
 
-def Gal_to_Halo_mass(lMgal):
-    #Behroozi+2010 eq 21. assumes redshift 0
+def Gal_to_Halo_mass(lMgal,zobs):
+    #Behroozi+2010 eq 21.
+    a=1+zobs
+    am=a-1
+    lM1=12.35
     lM0=10.72
     b=0.44
     d=0.57
     g=1.56
-    lM1=12.35
+
+    lM1a=0.28
+    lM0a=0.55
+    ba=0.18
+    da=0.17
+    ga=2.51
+
+    b=b+ba*am
+    d=d+da*am
+    g=g+ga*am
+    lM1=lM1+lM1a*am
+    lM0=lM0+lM0a*am
+
     ratio=10**(lMgal-lM0)
     lMhalo=lM1+b*(lMgal-lM0)+(ratio**d/(1+ratio**(-g)))-.5
     return lMhalo
@@ -435,3 +527,56 @@ def abundance_match_behroozi_2012(Mhalo,z,alpha=None):
             log10Mstar[Mhalo<M1] = log10(epsilon*M1) + f(log10(Mhalo[Mhalo<M1]/M1),alpha,delta,gamma) - f(0,alpha,delta,gamma)
 
     return 10**log10Mstar
+
+
+
+def griddata(x,y,z,imshow=False):
+    """
+    Takes in three 1D arrays, x, y, and z, all of which must be the same length
+    and which together form (xi,yi,zi) tuples, and creates a grid fit to be plotted
+    with either imshow or pcolormesh
+
+    if imshow = True, then the return is the array to plot followed by the extent to
+    pass.  in this case, the array has been flipped to make it work with imshow; just do:
+    H,extent = griddata(x,y,z,imshow=True)
+    plt.imshow(H,extent=extent)
+
+    if imshow = False, then the returns are the output of np.meshgrid and
+    the gridded Z data; just do:
+    X,Y,Z = griddata(x,y,z)
+    plt.pcolormesh(X,Y,Z)
+
+    """
+    import numpy as np
+    assert len(x) == len(y) == len(z)
+    assert len(x) >= 2
+
+    x,y,z = np.array(x),np.array(y),np.array(z)
+    ux,uy = np.sort(np.unique(x)),np.sort(np.unique(y))
+    X,Y = np.meshgrid(ux,uy)
+    result = np.empty_like(X)
+    for ii in range(ux.shape[0]):
+        for jj in range(uy.shape[0]):
+            tx,ty = X[jj,ii],Y[jj,ii]
+            loc = (x==tx)&(y==ty)
+            assert loc[loc].shape[0] == 1
+            result[jj,ii] = z[loc]
+
+    if imshow:
+        extent = [ux[0]-(ux[1]-ux[0])/2.,ux[-1]+(ux[-1]-ux[-2])/2.,uy[0]-(uy[1]-uy[0])/2.,uy[-1]+(uy[-1]-uy[-2])/2.]
+        return result[::-1],extent
+    else:
+        #now I need to offset the ux and uy arrays, which indicate the centers of the squares, by 1/2 so that they instead indicate the corners
+        #need to make them go one above and one below
+        nux = np.append(ux[0]-(ux[1]-ux[0]),ux) #make it go one further below
+        nux = np.append(nux,nux[-1]+(nux[-1]-nux[-2]))
+
+        nuy = np.append(uy[0]-(uy[1]-uy[0]),uy)
+        nuy = np.append(nuy,nuy[-1]+(nuy[-1]-nuy[-2]))
+
+        ox = (nux[:-1]+nux[1:])/2.
+        oy = (nuy[:-1]+nuy[1:])/2.
+
+        X,Y = np.meshgrid(ox,oy)
+
+        return X,Y,result
